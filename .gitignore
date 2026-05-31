@@ -1,0 +1,58 @@
+# Dependências / Módulos
+node_modules/
+jspm_packages/
+web_modules/
+
+# Saídas de Build / Produção
+dist/
+dist-ssr/
+build/
+out/
+.vercel
+.netlify
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Variáveis de Ambiente e Segredos locais (NUNCA enviar ao remoto)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Cache de ferramentas de linting e TypeScript
+.eslintcache
+*.tsbuildinfo
+.vite/
+.parcel-cache/
+.next/
+
+# Configurações de Editores e IDEs (VS Code, WebStorm, etc)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.project
+.classpath
+.settings/
+
+# Arquivos do Sistema Operacional
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
