@@ -25,13 +25,13 @@ export function VoiceRecorder({
 }: VoiceRecorderProps) {
   
   return (
-    <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-6 rounded-2xl shadow-sm lg:col-span-2 flex flex-col justify-between gap-6">
+    <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-6 rounded-2xl shadow-sm lg:col-span-2 flex flex-col justify-between gap-6 min-w-0">
       <div>
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 min-w-0">
           <span className="p-1.5 bg-brand-green/10 text-brand-green-hover dark:text-brand-green rounded-lg">
             <Mic size={18} />
           </span>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Entrada de Dados por Voz (Almoxarifado)</h3>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white min-w-0">Entrada de Dados por Voz (Almoxarifado)</h3>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Grave uma instrução de voz. O arquivo de áudio será enviado para o seu microsserviço de transcrição, processado no backend e refletido no estoque do Almoxarifado.
@@ -74,7 +74,7 @@ export function VoiceRecorder({
         </div>
 
         {/* Resultado da Transcrição e Ação tomada */}
-        <div className="flex-1 px-4 text-center sm:text-left space-y-2 max-w-sm">
+        <div className="flex-1 px-4 text-center sm:text-left space-y-2 max-w-sm min-w-0">
           {recordingStatus === 'success' && transcriptionResult ? (
             <div className="space-y-1.5 animate-fadeIn">
               <div className="text-[10px] uppercase font-bold text-slate-400">Transcrição do Microsserviço:</div>

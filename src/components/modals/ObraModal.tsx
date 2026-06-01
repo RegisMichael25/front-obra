@@ -1,36 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, HardHat } from 'lucide-react'
 import type { Obra } from '../../types'
+import { api } from '../../services/api'
 
 interface ObraModalProps {
   onClose: () => void
-  onSave: (obra: {
-    nome: string
-    endereco: string
-    progresso: number
-    orcamentoTotal: number
-    responsavel: string
-    status: Obra['status']
-  }) => void
+  onSave: (obra: Partial<Obra>) => void
 }
 
 export function ObraModal({ onClose, onSave }: ObraModalProps) {
   const [nome, setNome] = useState('')
-  const [endereco, setEndereco] = useState('')
-  const [orcamentoTotal, setOrcamentoTotal] = useState(0)
-  const [progresso, setProgresso] = useState(0)
-  const [status, setStatus] = useState<Obra['status']>('Planejamento')
-  const [responsavel, setResponsavel] = useState('Eng. Marcos Silva')
+  const [codigo, setCodigo] = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
+  const [idStatusObra, setIdStatusObra] = useState<number | ''>('')
+  
+  const [statusOptions, setStatusOptions] = useState<any[]>([])
+
+  useEffect(() => {
+    // Carregar opções de status
+    api.get<any[]>('/obra/status')
+      .then(res => {
+        setStatusOptions(res)
+        if (res.length > 0) setIdStatusObra(res[0].id)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSave({
       nome,
-      endereco,
-      progresso,
-      orcamentoTotal,
-      responsavel,
-      status
+      codigo,
+      descricao,
+      dataInicio: dataInicio ? new Date(dataInicio).toISOString() : undefined,
+      dataFim: dataFim ? new Date(dataFim).toISOString() : undefined,
+      idStatusObra: Number(idStatusObra)
     })
   }
 
@@ -52,7 +58,6 @@ export function ObraModal({ onClose, onSave }: ObraModalProps) {
             <input 
               type="text" 
               required
-              placeholder="Ex: Edifício Green Tower"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
@@ -60,69 +65,59 @@ export function ObraModal({ onClose, onSave }: ObraModalProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Endereço *</label>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Código da Obra *</label>
             <input 
               type="text" 
               required
-              placeholder="Ex: Av. Atlântica, 100 - Balneário Camboriú, SC"
-              value={endereco}
-              onChange={(e) => setEndereco(e.target.value)}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Descrição</label>
+            <textarea 
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Orçamento Total (R$) *</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data Início</label>
               <input 
-                type="number" 
-                required
-                placeholder="Ex: 500000"
-                value={orcamentoTotal || ''}
-                onChange={(e) => setOrcamentoTotal(Number(e.target.value))}
+                type="date" 
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
               />
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Progresso Inicial (%)</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data Fim</label>
               <input 
-                type="number" 
-                min="0"
-                max="100"
-                value={progresso}
-                onChange={(e) => setProgresso(Number(e.target.value))}
+                type="date" 
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status da Obra</label>
-              <select 
-                value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
-              >
-                <option value="Planejamento">Planejamento</option>
-                <option value="Andamento">Em Andamento</option>
-                <option value="Concluido">Concluído</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Responsável</label>
-              <select 
-                value={responsavel}
-                onChange={(e) => setResponsavel(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
-              >
-                <option value="Eng. Marcos Silva">Eng. Marcos Silva</option>
-                <option value="Engª. Sofia Costa">Engª. Sofia Costa</option>
-                <option value="Eng. Roberto Azevedo">Eng. Roberto Azevedo</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status da Obra *</label>
+            <select 
+              required
+              value={idStatusObra}
+              onChange={(e) => setIdStatusObra(Number(e.target.value))}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-xl focus:outline-none focus:border-brand-green text-slate-800 dark:text-slate-100"
+            >
+              <option value="" disabled>Selecione um status</option>
+              {statusOptions.map(st => (
+                <option key={st.id} value={st.id}>{st.nome}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-brand-border-light dark:border-brand-border-dark justify-end">
@@ -145,5 +140,3 @@ export function ObraModal({ onClose, onSave }: ObraModalProps) {
     </div>
   )
 }
-
-

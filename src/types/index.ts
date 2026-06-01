@@ -1,41 +1,33 @@
 export interface Obra {
-  id: string
+  id: number
+  idStatusObra?: number
+  nomeStatusObra?: string
+  idResponsavel?: number
+  chaveResponsavel?: string
+  codigo?: string
   nome: string
-  endereco: string
-  progresso: number
-  orcamentoTotal: number
-  orcamentoGasto: number
-  dataInicio: string
-  dataFim: string
-  status: 'Andamento' | 'Planejamento' | 'Concluido'
-  responsavel: string
+  descricao?: string
+  dataInicio?: string
+  dataFim?: string
 }
 
 export interface EstoqueItem {
-  id: string
-  item: string
-  quantidade: number
-  unidade: string
-  estoqueMinimo: number
-  categoria: 'Básico' | 'Estrutura' | 'Acabamento'
-  status: 'Adequado' | 'Crítico' | 'Esgotado'
-}
-
-export interface Transacao {
-  id: string
-  descricao: string
-  obraNome: string
-  valor: number
-  tipo: 'Despesa' | 'Receita'
-  categoria: 'Material' | 'Mão de Obra' | 'Equipamentos' | 'Administrativo'
-  data: string
-  status: 'Pago' | 'Pendente'
+  id: number
+  idObra: number
+  nomeObra?: string
+  idMaterial: number
+  nomeMaterial: string
+  idFornecedor?: number
+  nomeFornecedor?: string
+  quantidadeAtual: number
+  quantidadeMinima: number
 }
 
 export interface PerfilUsuario {
+  id?: number
+  chave?: string
   nome: string
   cargo: string
   empresa: string
   iniciais: string
 }
-

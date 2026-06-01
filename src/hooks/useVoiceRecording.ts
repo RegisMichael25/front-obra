@@ -111,12 +111,11 @@ export function useVoiceRecording({ setEstoque, showToast }: UseVoiceRecordingPr
     }
 
     setEstoque(prevEstoque => prevEstoque.map(item => {
-      if (item.id === itemAfetadoId) {
-        const novaQtd = item.quantidade + quantidadeAdicionar
+      if (item.id.toString() === itemAfetadoId) {
+        const novaQtd = item.quantidadeAtual + quantidadeAdicionar
         return {
           ...item,
-          quantidade: novaQtd,
-          status: novaQtd >= item.estoqueMinimo ? 'Adequado' : 'Crítico'
+          quantidadeAtual: novaQtd,
         }
       }
       return item
