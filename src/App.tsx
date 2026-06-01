@@ -1,160 +1,250 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useState, useEffect } from 'react'
 
-function App() {
-  const [count, setCount] = useState(0)
+// Tipos
+import type { Obra, EstoqueItem, Transacao, PerfilUsuario } from './types'
+
+// Dados Mockados
+import { initialObras, initialEstoque, initialTransacoes } from './data/mockData'
+
+// Hooks
+import { useVoiceRecording } from './hooks/useVoiceRecording'
+
+// Layout
+import { Sidebar } from './components/layout/Sidebar'
+import { Header } from './components/layout/Header'
+import { Footer } from './components/layout/Footer'
+
+// Telas
+import { HomeScreen } from './components/screens/HomeScreen'
+import { ProjectsScreen } from './components/screens/ProjectsScreen'
+import { BudgetsScreen } from './components/screens/BudgetsScreen'
+import { InventoryScreen } from './components/screens/InventoryScreen'
+import { SettingsScreen } from './components/screens/SettingsScreen'
+
+// Modais
+import { ObraModal } from './components/modals/ObraModal'
+import { TransacaoModal } from './components/modals/TransacaoModal'
+
+// Common
+import { Toast } from './components/common/Toast'
+
+export default function App() {
+  // Estado do Tema (Light / Dark)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme')
+    return (saved as 'light' | 'dark') || 'dark'
+  })
+
+  // Estado de Navegação e Menu Lateral
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'projects' | 'budgets' | 'inventory' | 'settings'>('home')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Estados dos Dados Mockados
+  const [perfil, setPerfil] = useState<PerfilUsuario>({
+    nome: 'Gabriel Silva',
+    cargo: 'Engenheiro Civil & Gestor',
+    empresa: 'Gabriel Construções Ltda',
+    iniciais: 'GS'
+  })
+
+  const [obras, setObras] = useState<Obra[]>(initialObras)
+  const [estoque, setEstoque] = useState<EstoqueItem[]>(initialEstoque)
+  const [transacoes, setTransacoes] = useState<Transacao[]>(initialTransacoes)
+
+  // Modais e Estados de Criação
+  const [modalObraOpen, setModalObraOpen] = useState(false)
+  const [modalTransacaoOpen, setModalTransacaoOpen] = useState(false)
+
+  // Toasts de Notificação
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(null), 3000)
+  }
+
+  // Hook para gravação de voz
+  const {
+    recordingStatus,
+    recordingTime,
+    transcriptionResult,
+    startRecording,
+    stopRecording,
+    processarAudioComando
+  } = useVoiceRecording({ setEstoque, showToast })
+
+  // Efeito para injetar a classe Dark no HTML
+  useEffect(() => {
+    const root = window.document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  // Lógica de Cadastro
+  const handleCriarObra = (novaDados: Omit<Obra, 'id' | 'orcamentoGasto' | 'dataInicio' | 'dataFim'>) => {
+    const nova: Obra = {
+      ...novaDados,
+      id: Date.now().toString(),
+      orcamentoGasto: 0,
+      dataInicio: new Date().toLocaleDateString('pt-BR'),
+      dataFim: 'Sem previsão'
+    }
+    setObras([nova, ...obras])
+    showToast(`Obra "${nova.nome}" cadastrada com sucesso!`)
+  }
+
+  const handleCriarTransacao = (novaDados: Omit<Transacao, 'id' | 'data'>) => {
+    const nova: Transacao = {
+      ...novaDados,
+      id: Date.now().toString(),
+      data: new Date().toLocaleDateString('pt-BR')
+    }
+    if (nova.tipo === 'Despesa') {
+      setObras(prevObras => prevObras.map(o => {
+        if (o.nome === nova.obraNome) {
+          return { ...o, orcamentoGasto: o.orcamentoGasto + nova.valor }
+        }
+        return o
+      }))
+    }
+    setTransacoes([nova, ...transacoes])
+    showToast('Lançamento financeiro registrado!')
+  }
+
+  // Lógica de Estoque
+  const handleSolicitarReposicao = (itemId: string, itemNome: string) => {
+    setEstoque(prevEstoque => prevEstoque.map(item => {
+      if (item.id === itemId) {
+        const novaQtd = item.quantidade + 50
+        return {
+          ...item,
+          quantidade: novaQtd,
+          status: novaQtd >= item.estoqueMinimo ? 'Adequado' : 'Crítico'
+        }
+      }
+      return item
+    }))
+    showToast(`Pedido de reposição de 50 unidades feito para "${itemNome}"`)
+  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-between p-6 md:p-12 relative overflow-hidden font-sans">
-      {/* Decorative gradient backgrounds */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-brand-purple/10 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-brand-blue/10 blur-[120px] pointer-events-none"></div>
+    <div className="min-h-screen font-sans bg-brand-bg-light text-slate-800 dark:bg-brand-bg-dark dark:text-slate-100 flex flex-col md:flex-row relative">
+      
+      {toastMessage && <Toast message={toastMessage} />}
 
-      {/* Header */}
-      <header className="w-full max-w-5xl flex justify-between items-center z-10">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-lg tracking-wider bg-gradient-to-r from-brand-blue to-brand-purple bg-clip-text text-transparent">PROJ-OBRA</span>
-        </div>
-        <span className="text-xs text-slate-400 bg-slate-900/80 border border-slate-800 rounded-full px-3 py-1 backdrop-blur-md">Vite + React + TS + Tailwind v4</span>
-      </header>
+      <Sidebar 
+        currentScreen={currentScreen} 
+        setCurrentScreen={setCurrentScreen} 
+        sidebarOpen={sidebarOpen} 
+        setSidebarOpen={setSidebarOpen} 
+        perfil={perfil} 
+      />
 
-      {/* Main Content */}
-      <main className="w-full max-w-5xl flex flex-col items-center justify-center my-12 z-10 text-center gap-8">
-        
-        {/* Logo and Hero Showcase */}
-        <div className="relative flex items-center justify-center gap-6 md:gap-8 bg-slate-900/40 p-8 rounded-3xl border border-slate-800/80 backdrop-blur-xl shadow-2xl">
-          <div className="relative group">
-            <img 
-              src={heroImg} 
-              className="w-32 md:w-40 filter drop-shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-transform duration-500 group-hover:scale-105" 
-              alt="Hero graphic" 
+      {sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm md:hidden"
+        />
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+        <Header 
+          currentScreen={currentScreen} 
+          setCurrentScreen={setCurrentScreen}
+          theme={theme} 
+          setTheme={setTheme} 
+          setSidebarOpen={setSidebarOpen} 
+          perfil={perfil} 
+        />
+
+        <main className="p-6 max-w-7xl w-full mx-auto space-y-6 flex-1">
+          {currentScreen === 'home' && (
+            <HomeScreen 
+              estoque={estoque}
+              setCurrentScreen={setCurrentScreen}
+              recordingStatus={recordingStatus}
+              recordingTime={recordingTime}
+              transcriptionResult={transcriptionResult}
+              startRecording={startRecording}
+              stopRecording={stopRecording}
+              processarAudioComando={processarAudioComando}
             />
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-center gap-4">
-              <a href="https://vite.dev" target="_blank" rel="noreferrer" className="hover:drop-shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all">
-                <img src={viteLogo} className="w-12 h-12 md:w-16 md:h-16 animate-pulse" alt="Vite logo" />
-              </a>
-              <a href="https://react.dev" target="_blank" rel="noreferrer" className="hover:drop-shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all">
-                <img src={reactLogo} className="w-12 h-12 md:w-16 md:h-16 spin-slow" alt="React logo" />
-              </a>
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* Title */}
-        <div className="flex flex-col gap-4 max-w-2xl">
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
-            Pronto para Iniciar
-          </h1>
-          <p className="text-slate-400 text-sm md:text-base leading-relaxed">
-            Edite o arquivo <code className="bg-slate-900 px-2 py-1 rounded text-brand-purple text-xs md:text-sm font-mono border border-slate-800/60">src/App.tsx</code> para testar a atualização rápida (HMR).
-          </p>
-        </div>
+          {currentScreen === 'projects' && (
+            <ProjectsScreen 
+              obras={obras}
+              setModalObraOpen={setModalObraOpen}
+            />
+          )}
 
-        {/* Interactive Button */}
-        <div className="flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setCount((count) => count + 1)}
-            className="px-6 py-3 bg-gradient-to-r from-brand-blue to-brand-purple hover:from-brand-blue/90 hover:to-brand-purple/90 text-white font-medium rounded-xl transition-all duration-300 transform hover:scale-[1.03] shadow-lg shadow-brand-blue/20 hover:shadow-brand-purple/30 cursor-pointer text-sm md:text-base"
-          >
-            Contador: {count}
-          </button>
-        </div>
+          {currentScreen === 'budgets' && (
+            <BudgetsScreen 
+              transacoes={transacoes}
+              setModalTransacaoOpen={setModalTransacaoOpen}
+            />
+          )}
 
-        {/* Links Grid */}
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 text-left">
-          {/* Card 1: Documentation */}
-          <div className="bg-slate-900/30 hover:bg-slate-900/60 p-6 md:p-8 rounded-2xl border border-slate-800/80 backdrop-blur-md transition-all duration-300 hover:border-brand-blue/40 flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold flex items-center gap-2 text-brand-blue">
-              <span>📚</span> Documentação
-            </h2>
-            <p className="text-slate-400 text-xs md:text-sm">
-              Explore os guias oficiais e APIs para construir interfaces incríveis com Vite e React.
-            </p>
-            <div className="flex flex-wrap gap-3 mt-2">
-              <a 
-                href="https://vite.dev/" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-xs flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 hover:border-brand-blue text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-              >
-                Vite Docs
-              </a>
-              <a 
-                href="https://react.dev/" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-xs flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 hover:border-brand-purple text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-              >
-                React Docs
-              </a>
-            </div>
-          </div>
+          {currentScreen === 'inventory' && (
+            <InventoryScreen 
+              estoque={estoque}
+              handleSolicitarReposicao={handleSolicitarReposicao}
+            />
+          )}
 
-          {/* Card 2: Community */}
-          <div className="bg-slate-900/30 hover:bg-slate-900/60 p-6 md:p-8 rounded-2xl border border-slate-800/80 backdrop-blur-md transition-all duration-300 hover:border-brand-purple/40 flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold flex items-center gap-2 text-brand-purple">
-              <span>🌐</span> Conecte-se
-            </h2>
-            <p className="text-slate-400 text-xs md:text-sm">
-              Participe da comunidade oficial do ecossistema e acompanhe as atualizações mais recentes.
-            </p>
-            <div className="flex flex-wrap gap-3 mt-2">
-              <a 
-                href="https://github.com/vitejs/vite" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-xs flex items-center gap-1 bg-slate-950/80 border border-slate-800 hover:border-slate-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-              >
-                GitHub
-              </a>
-              <a 
-                href="https://chat.vite.dev/" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-xs flex items-center gap-1 bg-slate-950/80 border border-slate-800 hover:border-indigo-500 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-              >
-                Discord
-              </a>
-              <a 
-                href="https://x.com/vite_js" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-xs flex items-center gap-1 bg-slate-950/80 border border-slate-800 hover:border-sky-500 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-              >
-                X.com
-              </a>
-            </div>
-          </div>
-        </div>
+          {currentScreen === 'settings' && (
+            <SettingsScreen 
+              perfil={perfil}
+              setPerfil={setPerfil}
+              theme={theme}
+              setTheme={setTheme}
+              showToast={showToast}
+            />
+          )}
+        </main>
 
-      </main>
+        <Footer />
+      </div>
 
-      {/* Footer */}
-      <footer className="w-full max-w-5xl flex justify-center items-center pt-8 border-t border-slate-900 text-slate-500 text-xs z-10">
-        <p>&copy; {new Date().getFullYear()} PROJ-OBRA. Todos os direitos reservados.</p>
-      </footer>
+      {modalObraOpen && (
+        <ObraModal 
+          onClose={() => setModalObraOpen(false)} 
+          onSave={handleCriarObra} 
+        />
+      )}
 
-      {/* Spin custom css animation */}
+      {modalTransacaoOpen && (
+        <TransacaoModal 
+          onClose={() => setModalTransacaoOpen(false)} 
+          onSave={handleCriarTransacao} 
+          obras={obras} 
+        />
+      )}
+
       <style>{`
-        .spin-slow {
-          animation: spin 15s linear infinite;
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.25s ease-out forwards;
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .text-xxs {
+          font-size: 0.65rem;
         }
       `}</style>
     </div>
   )
 }
 
-export default App
+
