@@ -45,7 +45,7 @@ export function Header({
         <div className="flex items-center gap-4 shrink-0">
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 rounded-xl border border-brand-border-light dark:border-brand-border-dark text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 shadow-sm"
+            className="p-2 rounded-xl border border-brand-border-light dark:border-brand-border-dark text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 shadow-sm cursor-pointer"
             title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
           >
             {theme === 'dark' ? (
@@ -67,7 +67,7 @@ export function Header({
               localStorage.removeItem('token')
               window.location.href = '/login'
             }}
-            className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors ml-2"
+            className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors ml-2 cursor-pointer"
           >
             Sair
           </button>

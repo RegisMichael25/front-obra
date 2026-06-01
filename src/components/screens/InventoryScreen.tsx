@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Package, AlertTriangle, X } from 'lucide-react'
+import { Package, AlertTriangle, X, FileDown } from 'lucide-react'
 import type { EstoqueItem, Obra } from '../../types'
 import { api } from '../../services/api'
 
@@ -12,6 +12,11 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
   const [selectedObra, setSelectedObra] = useState<string>('')
   const [estoque, setEstoque] = useState<EstoqueItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [exportingFormat, setExportingFormat] = useState<'csv' | null>(null)
+
+  const exportEndpoints = {
+    csv: (idObra: string) => `/relatorios/movimentacao/estoque?formato=csv&idObra=${idObra}`
+  } as const
 
   // Carregar lista de obras ao abrir a tela
   useEffect(() => {
@@ -56,6 +61,25 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
       showToast(`Reposição de 50 unidades concluída para "${itemNome}"`)
     } catch (err: any) {
       showToast(err.message || 'Erro ao solicitar reposição')
+    }
+  }
+
+  const handleExport = async (format: 'csv') => {
+    if (!selectedObra) {
+      showToast('Selecione uma obra para exportar o estoque')
+      return
+    }
+
+    try {
+      setExportingFormat(format)
+      await api.download(exportEndpoints[format](selectedObra), {
+        filename: `estoque-obra-${selectedObra}.${format}`
+      })
+      showToast(`Arquivo ${format.toUpperCase()} gerado com sucesso`)
+    } catch (err: any) {
+      showToast(err.message || `Erro ao gerar ${format.toUpperCase()}`)
+    } finally {
+      setExportingFormat(null)
     }
   }
 
@@ -110,8 +134,17 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
       {/* Tabela do Estoque */}
       <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark rounded-2xl shadow-sm overflow-hidden">
         
-        <div className="px-6 py-4 border-b border-brand-border-light dark:border-brand-border-dark flex justify-between items-center">
+        <div className="px-6 py-4 border-b border-brand-border-light dark:border-brand-border-dark flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white font-semibold">Tabela de Almoxarifado</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleExport('csv')}
+              disabled={exportingFormat !== null || !selectedObra}
+              className="px-3 py-1.5 bg-slate-50 border border-brand-border-light dark:bg-slate-900 dark:border-brand-border-dark text-xs font-semibold text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 flex items-center gap-1.5"
+            >
+              <FileDown size={13} /> {exportingFormat === 'csv' ? 'Gerando...' : 'CSV'}
+            </button>
+          </div>
         </div>
 
         {loading ? (

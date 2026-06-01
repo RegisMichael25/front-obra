@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Filter, Plus, Calendar, User } from 'lucide-react'
+import { Search, Filter, Plus, Calendar, User, FileDown } from 'lucide-react'
 import type { Obra } from '../../types'
 import { api } from '../../services/api'
 import { ObraModal } from '../modals/ObraModal'
@@ -12,6 +12,7 @@ export function ProjectsScreen({ showToast }: ProjectsScreenProps) {
   const [obras, setObras] = useState<Obra[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [exportingObraId, setExportingObraId] = useState<string | null>(null)
 
   const fetchObras = async () => {
     try {
@@ -40,6 +41,20 @@ export function ProjectsScreen({ showToast }: ProjectsScreenProps) {
     }
   }
 
+  const handleExportObra = async (idObra: string) => {
+    try {
+      setExportingObraId(idObra)
+      await api.download(`/relatorios/obra/${idObra}?formato=xlsx`, {
+        filename: `obra-${idObra}.xlsx`
+      })
+      showToast('Relatório da obra gerado com sucesso')
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao gerar relatório da obra')
+    } finally {
+      setExportingObraId(null)
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn">
 
@@ -58,7 +73,8 @@ export function ProjectsScreen({ showToast }: ProjectsScreenProps) {
           <span className="text-xs text-slate-500 flex items-center gap-1"><Filter size={12} /> Filtros:</span>
           <button className="px-3 py-1.5 bg-brand-green/20 text-brand-green-hover dark:text-brand-green border border-brand-green/30 text-xs font-semibold rounded-lg">Todos</button>
           <button className="px-3 py-1.5 bg-slate-50 border border-brand-border-light dark:bg-slate-900 dark:border-brand-border-dark text-xs text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">Ativos</button>
-          
+
+
           <button 
             onClick={() => setModalOpen(true)}
             className="ml-auto md:ml-4 px-4 py-2 bg-brand-green hover:bg-brand-green-hover text-brand-green-dark font-bold text-xs md:text-sm rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02] cursor-pointer"
@@ -111,12 +127,22 @@ export function ProjectsScreen({ showToast }: ProjectsScreenProps) {
                     {obra.dataFim ? new Date(obra.dataFim).toLocaleDateString('pt-BR') : 'Sem fim'}
                   </span>
                 </div>
-                {obra.chaveResponsavel && (
-                  <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
-                    <User size={13} />
-                    <span>{obra.chaveResponsavel}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  {obra.chaveResponsavel && (
+                    <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
+                      <User size={13} />
+                      <span>{obra.chaveResponsavel}</span>
+                    </div>
+                  )}
+                  <button 
+                    onClick={() => handleExportObra(obra.id.toString())}
+                    disabled={exportingObraId === obra.id.toString()}
+                    className={`p-1.5 rounded-lg text-slate-600 dark:text-slate-300 transition-colors ${exportingObraId === obra.id.toString() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'}`}
+                    title="Exportar Relatório (XLSX)"
+                  >
+                    <FileDown size={14} />
+                  </button>
+                </div>
               </div>
 
             </div>
