@@ -46,21 +46,29 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
       .finally(() => setLoading(false))
   }, [selectedObra])
 
-  const handleSolicitarReposicao = async (itemId: number, itemNome: string) => {
-    const item = estoque.find(i => i.id === itemId)
-    if (!item) return
+  const [editingMinimoId, setEditingMinimoId] = useState<number | null>(null)
+  const [editMinimoValue, setEditMinimoValue] = useState<string>('')
+
+  const handleSaveMinimo = async (item: EstoqueItem) => {
+    if (!editingMinimoId) return
+    const numValue = Number(editMinimoValue)
+    if (isNaN(numValue) || numValue < 0) {
+      showToast('Valor inválido para o mínimo recomendado.')
+      setEditingMinimoId(null)
+      return
+    }
 
     try {
-      const novaQtd = item.quantidadeAtual + 50
-      await api.put(`/obra/estoque/${itemId}`, {
+      await api.put(`/obra/estoque/${item.id}`, {
         ...item,
-        quantidadeAtual: novaQtd
+        quantidadeMinima: numValue
       })
-      
-      setEstoque(prev => prev.map(i => i.id === itemId ? { ...i, quantidadeAtual: novaQtd } : i))
-      showToast(`Reposição de 50 unidades concluída para "${itemNome}"`)
+      setEstoque(prev => prev.map(i => i.id === item.id ? { ...i, quantidadeMinima: numValue } : i))
+      showToast('Mínimo recomendado atualizado!')
     } catch (err: any) {
-      showToast(err.message || 'Erro ao solicitar reposição')
+      showToast(err.message || 'Erro ao atualizar o mínimo.')
+    } finally {
+      setEditingMinimoId(null)
     }
   }
 
@@ -83,8 +91,16 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
     }
   }
 
-  const itensCriticos = estoque.filter(i => i.quantidadeAtual > 0 && i.quantidadeAtual <= i.quantidadeMinima).length
-  const itensEsgotados = estoque.filter(i => i.quantidadeAtual === 0).length
+  const getStatus = (qtd: number, min: number) => {
+    if (qtd === 0) return 'Esgotado'
+    if (qtd <= min) return 'Crítico'
+    if (qtd <= min * 1.2) return 'Atenção'
+    return 'Adequado'
+  }
+
+  const itensCriticos = estoque.filter(i => getStatus(i.quantidadeAtual, i.quantidadeMinima) === 'Crítico').length
+  const itensEsgotados = estoque.filter(i => getStatus(i.quantidadeAtual, i.quantidadeMinima) === 'Esgotado').length
+  const itensAtencao = estoque.filter(i => getStatus(i.quantidadeAtual, i.quantidadeMinima) === 'Atenção').length
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -105,7 +121,7 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
       </div>
 
       {/* Métricas do Almoxarifado */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total de Itens</span>
@@ -116,18 +132,26 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
 
         <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Itens Críticos</span>
-            <h3 className="text-2xl font-bold mt-1 text-amber-500">{itensCriticos}</h3>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Em Atenção</span>
+            <h3 className="text-2xl font-bold mt-1 text-amber-500">{itensAtencao}</h3>
           </div>
           <span className="p-3 bg-amber-500/10 rounded-2xl text-amber-500"><AlertTriangle size={22} /></span>
         </div>
 
         <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Items Esgotados</span>
-            <h3 className="text-2xl font-bold mt-1 text-rose-500">{itensEsgotados}</h3>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Críticos</span>
+            <h3 className="text-2xl font-bold mt-1 text-rose-500">{itensCriticos}</h3>
           </div>
-          <span className="p-3 bg-rose-500/10 rounded-2xl text-rose-500"><X size={22} /></span>
+          <span className="p-3 bg-rose-500/10 rounded-2xl text-rose-500"><AlertTriangle size={22} /></span>
+        </div>
+
+        <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Esgotados</span>
+            <h3 className="text-2xl font-bold mt-1 text-red-600 dark:text-red-500">{itensEsgotados}</h3>
+          </div>
+          <span className="p-3 bg-red-500/10 rounded-2xl text-red-600 dark:text-red-500"><X size={22} /></span>
         </div>
       </div>
 
@@ -161,12 +185,11 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
                   <th className="px-6 py-3.5">Quantidade Atual</th>
                   <th className="px-6 py-3.5">Mínimo Recomendado</th>
                   <th className="px-6 py-3.5">Status</th>
-                  <th className="px-6 py-3.5 text-right">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border-light dark:divide-brand-border-dark text-sm">
                 {estoque.map((item) => {
-                  const status = item.quantidadeAtual === 0 ? 'Esgotado' : item.quantidadeAtual <= item.quantidadeMinima ? 'Crítico' : 'Adequado'
+                  const status = getStatus(item.quantidadeAtual, item.quantidadeMinima)
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10">
@@ -176,31 +199,59 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
                         {item.quantidadeAtual}
                       </td>
                       <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
-                        {item.quantidadeMinima}
+                        {editingMinimoId === item.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={editMinimoValue}
+                              onChange={e => setEditMinimoValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveMinimo(item)
+                                if (e.key === 'Escape') setEditingMinimoId(null)
+                              }}
+                              className="w-20 px-2 py-1 text-sm bg-white dark:bg-slate-900 border border-brand-border-light dark:border-brand-border-dark rounded-md focus:outline-none focus:border-brand-green"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleSaveMinimo(item)}
+                              className="text-[10px] font-bold bg-brand-green text-white px-2 py-1 rounded hover:bg-brand-green-hover"
+                            >
+                              OK
+                            </button>
+                            <button
+                              onClick={() => setEditingMinimoId(null)}
+                              className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => {
+                              setEditingMinimoId(item.id)
+                              setEditMinimoValue(item.quantidadeMinima.toString())
+                            }}
+                            className="cursor-pointer hover:text-brand-green transition-colors flex items-center gap-2 group"
+                            title="Clique para editar"
+                          >
+                            {item.quantidadeMinima}
+                            <span className="opacity-0 group-hover:opacity-100 text-[10px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 transition-opacity">
+                              editar
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`
                           px-2 py-0.5 rounded-full text-[10px] font-bold
                           ${status === 'Adequado' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : ''}
-                          ${status === 'Crítico' ? 'bg-amber-500/10 text-amber-500' : ''}
-                          ${status === 'Esgotado' ? 'bg-rose-500/10 text-rose-500' : ''}
+                          ${status === 'Atenção' ? 'bg-amber-500/10 text-amber-500' : ''}
+                          ${status === 'Crítico' ? 'bg-rose-500/10 text-rose-500' : ''}
+                          ${status === 'Esgotado' ? 'bg-red-600/10 text-red-600 dark:text-red-500' : ''}
                         `}>
                           {status}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleSolicitarReposicao(item.id, item.nomeMaterial)}
-                          disabled={status === 'Adequado'}
-                          className={`
-                            px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                            ${status === 'Adequado'
-                              ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed'
-                              : 'bg-brand-green/20 text-brand-green-hover dark:text-brand-green hover:bg-brand-green/30 cursor-pointer'}
-                          `}
-                        >
-                          Repor +50
-                        </button>
                       </td>
                     </tr>
                   )

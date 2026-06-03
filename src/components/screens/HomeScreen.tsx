@@ -6,29 +6,62 @@ import {
   HardHat
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import type { EstoqueItem } from '../../types'
+import { useState, useEffect } from 'react'
+import type { EstoqueItem, PerfilUsuario, Obra } from '../../types'
 import { VoiceRecorder } from '../voice/VoiceRecorder'
+import { api } from '../../services/api'
 
 interface HomeScreenProps {
+  perfil: PerfilUsuario
   estoque: EstoqueItem[]
-  recordingStatus: 'idle' | 'recording' | 'sending' | 'success' | 'error'
+  recordingStatus: 'idle' | 'recording' | 'analyzing' | 'preview' | 'saving' | 'success' | 'error'
   recordingTime: number
   transcriptionResult: { texto: string; acao: string } | null
+  previewAudioUrl: string | null
   startRecording: () => void
   stopRecording: () => void
-  processarAudioComando: (audioBlob: Blob | null, textPreset?: string) => void
+  retryRecording: () => void
+  confirmSend: () => void
+  errorMessage?: string | null
 }
 
 export function HomeScreen({
+  perfil,
   estoque,
   recordingStatus,
   recordingTime,
   transcriptionResult,
+  previewAudioUrl,
   startRecording,
   stopRecording,
-  processarAudioComando
+  retryRecording,
+  confirmSend,
+  errorMessage
 }: HomeScreenProps) {
   
+  const cargoNorm = perfil.cargo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+  const isOperador = cargoNorm.includes('pedreiro') || cargoNorm.includes('operador') || cargoNorm.includes('operario')
+  const isAdmin = cargoNorm.includes('admin') || cargoNorm.includes('engenheiro')
+
+  const [estoqueRapido, setEstoqueRapido] = useState<EstoqueItem[]>([])
+  const [loadingEstoque, setLoadingEstoque] = useState(false)
+
+  useEffect(() => {
+    if (isOperador) return // Operador não vê o painel de estoque
+
+    setLoadingEstoque(true)
+    api.get<Obra[]>('/obra')
+      .then(obras => {
+        if (obras.length > 0) {
+          return api.get<EstoqueItem[]>(`/obra/estoque?idObra=${obras[0].id}`)
+        }
+        return []
+      })
+      .then(items => setEstoqueRapido(items.slice(0, 10))) // Mostrar apenas os 10 primeiros
+      .catch(console.error)
+      .finally(() => setLoadingEstoque(false))
+  }, [isOperador])
+
   return (
     <div className="space-y-6 animate-fadeIn min-w-0">
       
@@ -49,19 +82,25 @@ export function HomeScreen({
       </div>
 
       {/* Seção de Comando de Voz para o Almoxarifado */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
+      <div className={`grid grid-cols-1 ${!isAdmin ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6 min-w-0`}>
         
-        {/* Gravador de Áudio */}
-        <VoiceRecorder 
-          recordingStatus={recordingStatus}
-          recordingTime={recordingTime}
-          transcriptionResult={transcriptionResult}
-          startRecording={startRecording}
-          stopRecording={stopRecording}
-          processarAudioComando={processarAudioComando}
-        />
+        {/* Gravador de Áudio - Oculto para Administrador */}
+        {!isAdmin && (
+          <VoiceRecorder 
+            recordingStatus={recordingStatus}
+            recordingTime={recordingTime}
+            transcriptionResult={transcriptionResult}
+            previewAudioUrl={previewAudioUrl}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
+            retryRecording={retryRecording}
+            confirmSend={confirmSend}
+            errorMessage={errorMessage}
+          />
+        )}
 
         {/* Minivisualizador de Estoque do Almoxarifado */}
+      {!isOperador && (
         <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-6 rounded-2xl shadow-sm flex flex-col justify-between gap-4 min-w-0">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Status Rápido do Almoxarifado</h3>
@@ -69,25 +108,31 @@ export function HomeScreen({
           </div>
 
           <div className="space-y-2 flex-1 overflow-y-auto max-h-56 pr-1">
-            {estoque.map(item => {
-              const status = item.quantidadeAtual === 0 ? 'Esgotado' : item.quantidadeAtual <= item.quantidadeMinima ? 'Crítico' : 'Adequado'
-              return (
-                <div key={item.id} className="flex justify-between items-center text-xs py-1.5 border-b border-brand-border-light dark:border-brand-border-dark last:border-b-0">
-                  <div>
-                    <p className="font-semibold text-slate-800 dark:text-slate-200">{item.nomeMaterial}</p>
-                    <p className="text-[10px] text-slate-400">{item.nomeFornecedor || '-'}</p>
+            {loadingEstoque ? (
+              <p className="text-xs text-slate-500 py-4 text-center">Carregando estoque...</p>
+            ) : estoqueRapido.length === 0 ? (
+              <p className="text-xs text-slate-500 py-4 text-center">Nenhum item cadastrado.</p>
+            ) : (
+              estoqueRapido.map(item => {
+                const status = item.quantidadeAtual === 0 ? 'Esgotado' : item.quantidadeAtual <= item.quantidadeMinima ? 'Crítico' : 'Adequado'
+                return (
+                  <div key={item.id} className="flex justify-between items-center text-xs py-1.5 border-b border-brand-border-light dark:border-brand-border-dark last:border-b-0">
+                    <div>
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">{item.nomeMaterial}</p>
+                      <p className="text-[10px] text-slate-400">{item.nomeFornecedor || '-'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{item.quantidadeAtual}</p>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                        status === 'Adequado' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                      }`}>
+                        {status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-slate-800 dark:text-slate-200">{item.quantidadeAtual}</p>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                      status === 'Adequado' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                    }`}>
-                      {status}
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
 
           <Link 
@@ -97,70 +142,73 @@ export function HomeScreen({
             Abrir Almoxarifado Completo
           </Link>
         </div>
+      )}
 
       </div>
 
       {/* Menu de Atalhos Rápidos para outras telas */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white font-semibold">Seções do Sistema</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-w-0">
-          
-          {/* Atalho Obras */}
-          <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex flex-col justify-between gap-4 hover:border-brand-green/30 transition-colors group">
-            <div className="flex justify-between items-start">
-              <span className="p-2 bg-brand-green/10 text-brand-green-hover dark:text-brand-green rounded-xl"><Briefcase size={20} /></span>
-              <span className="text-[10px] uppercase font-bold text-slate-400">Projetos</span>
+      {!isOperador && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white font-semibold">Seções do Sistema</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-w-0">
+            
+            {/* Atalho Obras */}
+            <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex flex-col justify-between gap-4 hover:border-brand-green/30 transition-colors group">
+              <div className="flex justify-between items-start">
+                <span className="p-2 bg-brand-green/10 text-brand-green-hover dark:text-brand-green rounded-xl"><Briefcase size={20} /></span>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Projetos</span>
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Obras & Projetos</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Gerencie canteiros, progresso físico, equipes e orçamentos totais.</p>
+              </div>
+              <Link 
+                to="/projetos"
+                className="text-xs font-bold text-brand-green-hover dark:text-brand-green flex items-center gap-1.5 hover:underline text-left cursor-pointer"
+              >
+                Acessar Obras <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
+              </Link>
             </div>
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white text-sm">Obras & Projetos</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Gerencie canteiros, progresso físico, equipes e orçamentos totais.</p>
-            </div>
-            <Link 
-              to="/projetos"
-              className="text-xs font-bold text-brand-green-hover dark:text-brand-green flex items-center gap-1.5 hover:underline text-left cursor-pointer"
-            >
-              Acessar Obras <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
 
-          {/* Atalho Almoxarifado */}
-          <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex flex-col justify-between gap-4 hover:border-brand-green/30 transition-colors group">
-            <div className="flex justify-between items-start">
-              <span className="p-2 bg-brand-green/10 text-brand-green-hover dark:text-brand-green rounded-xl"><Package size={20} /></span>
-              <span className="text-[10px] uppercase font-bold text-slate-400">{estoque.length} Itens</span>
+            {/* Atalho Almoxarifado */}
+            <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex flex-col justify-between gap-4 hover:border-brand-green/30 transition-colors group">
+              <div className="flex justify-between items-start">
+                <span className="p-2 bg-brand-green/10 text-brand-green-hover dark:text-brand-green rounded-xl"><Package size={20} /></span>
+                <span className="text-[10px] uppercase font-bold text-slate-400">{estoque.length} Itens</span>
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Almoxarifado & Estoque</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Acompanhe níveis de materiais, insumos de alvenaria e faça pedidos.</p>
+              </div>
+              <Link 
+                to="/almoxarifado"
+                className="text-xs font-bold text-brand-green-hover dark:text-brand-green flex items-center gap-1.5 hover:underline text-left cursor-pointer"
+              >
+                Acessar Almoxarifado <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
+              </Link>
             </div>
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white text-sm">Almoxarifado & Estoque</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Acompanhe níveis de materiais, insumos de alvenaria e faça pedidos.</p>
-            </div>
-            <Link 
-              to="/almoxarifado"
-              className="text-xs font-bold text-brand-green-hover dark:text-brand-green flex items-center gap-1.5 hover:underline text-left cursor-pointer"
-            >
-              Acessar Almoxarifado <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
 
-          {/* Atalho Configurações */}
-          <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex flex-col justify-between gap-4 hover:border-brand-green/30 transition-colors group">
-            <div className="flex justify-between items-start">
-              <span className="p-2 bg-brand-green/10 text-brand-green-hover dark:text-brand-green rounded-xl"><Settings size={20} /></span>
-              <span className="text-[10px] uppercase font-bold text-slate-400">Aparência</span>
+            {/* Atalho Configurações */}
+            <div className="bg-white border border-brand-border-light dark:bg-brand-card-dark dark:border-brand-border-dark p-5 rounded-2xl shadow-sm flex flex-col justify-between gap-4 hover:border-brand-green/30 transition-colors group">
+              <div className="flex justify-between items-start">
+                <span className="p-2 bg-brand-green/10 text-brand-green-hover dark:text-brand-green rounded-xl"><Settings size={20} /></span>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Aparência</span>
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Configurações</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Modifique os seus dados cadastrais fictícios e selecione o tema.</p>
+              </div>
+              <Link 
+                to="/configuracoes"
+                className="text-xs font-bold text-brand-green-hover dark:text-brand-green flex items-center gap-1.5 hover:underline text-left cursor-pointer"
+              >
+                Acessar Ajustes <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
+              </Link>
             </div>
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white text-sm">Configurações</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Modifique os seus dados cadastrais fictícios e selecione o tema.</p>
-            </div>
-            <Link 
-              to="/configuracoes"
-              className="text-xs font-bold text-brand-green-hover dark:text-brand-green flex items-center gap-1.5 hover:underline text-left cursor-pointer"
-            >
-              Acessar Ajustes <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
 
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   )

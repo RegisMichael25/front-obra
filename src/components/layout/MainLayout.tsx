@@ -10,16 +10,11 @@ interface MainLayoutProps {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   toastMessage: string | null;
+  perfil: PerfilUsuario;
 }
 
-export function MainLayout({ theme, setTheme, toastMessage }: MainLayoutProps) {
+export function MainLayout({ theme, setTheme, toastMessage, perfil }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [perfil] = useState<PerfilUsuario>({
-    nome: 'Usuário Logado',
-    cargo: 'Engenheiro',
-    empresa: 'Gestão de Obras',
-    iniciais: 'UL'
-  });
 
   // Efeito para injetar a classe Dark no HTML
   useEffect(() => {

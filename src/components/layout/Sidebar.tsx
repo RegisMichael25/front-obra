@@ -3,7 +3,8 @@ import {
   Briefcase, 
   Package, 
   Settings, 
-  X 
+  X,
+  Truck
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import type { PerfilUsuario } from '../../types'
@@ -20,12 +21,17 @@ export function Sidebar({
   perfil 
 }: SidebarProps) {
   
-  const menuItens = [
+  const menuItensFull = [
     { to: '/', label: 'Início', icon: Home },
     { to: '/projetos', label: 'Obras & Projetos', icon: Briefcase },
     { to: '/almoxarifado', label: 'Almoxarifado', icon: Package },
+    { to: '/fornecedores', label: 'Fornecedores', icon: Truck },
     { to: '/configuracoes', label: 'Configurações', icon: Settings },
   ] as const
+
+  const cargoNorm = perfil.cargo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+  const isOperador = cargoNorm.includes('pedreiro') || cargoNorm.includes('operador') || cargoNorm.includes('operario')
+  const menuItens = isOperador ? menuItensFull.filter(item => item.to === '/' || item.to === '/configuracoes') : menuItensFull
 
   return (
     <>

@@ -33,7 +33,7 @@ export function Header({
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
           >
             <Menu size={22} />
           </button>
