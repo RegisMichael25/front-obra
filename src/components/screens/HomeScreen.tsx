@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react'
 import type { EstoqueItem, PerfilUsuario, Obra } from '../../types'
 import { VoiceRecorder } from '../voice/VoiceRecorder'
 import { api } from '../../services/api'
+import { useRealtimeEstoque } from '../../hooks/useRealtimeEstoque'
 
 interface HomeScreenProps {
   perfil: PerfilUsuario
@@ -43,24 +44,7 @@ export function HomeScreen({
   const isOperador = cargoNorm.includes('pedreiro') || cargoNorm.includes('operador') || cargoNorm.includes('operario')
   const isAdmin = cargoNorm.includes('admin') || cargoNorm.includes('engenheiro')
 
-  const [estoqueRapido, setEstoqueRapido] = useState<EstoqueItem[]>([])
-  const [loadingEstoque, setLoadingEstoque] = useState(false)
-
-  useEffect(() => {
-    if (isOperador) return // Operador não vê o painel de estoque
-
-    setLoadingEstoque(true)
-    api.get<Obra[]>('/obra')
-      .then(obras => {
-        if (obras.length > 0) {
-          return api.get<EstoqueItem[]>(`/obra/estoque?idObra=${obras[0].id}`)
-        }
-        return []
-      })
-      .then(items => setEstoqueRapido(items.slice(0, 10))) // Mostrar apenas os 10 primeiros
-      .catch(console.error)
-      .finally(() => setLoadingEstoque(false))
-  }, [isOperador])
+  const { estoqueRapido, loading: loadingEstoque } = useRealtimeEstoque(isOperador)
 
   return (
     <div className="space-y-6 animate-fadeIn min-w-0">

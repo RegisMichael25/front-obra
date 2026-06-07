@@ -34,16 +34,33 @@ export function InventoryScreen({ showToast }: InventoryScreenProps) {
   useEffect(() => {
     if (!selectedObra) return
     
-    setLoading(true)
-    api.get<EstoqueItem[]>(`/obra/estoque?idObra=${selectedObra}`) // O Backend pode suportar filtro, ou se for /obra/estoque e filtrar no front:
-      .then(res => {
-        // Como o backend retorna tudo (segundo a API: GET /obra/estoque), podemos filtrar aqui ou verificar se existe uma rota específica.
-        // O swagger diz "GET /obra/estoque" sem query params. Então vamos filtrar no front ou usar o correto.
-        const itensFiltrados = res.filter(item => item.idObra.toString() === selectedObra)
-        setEstoque(itensFiltrados)
-      })
-      .catch(err => showToast(err.message || 'Erro ao carregar estoque'))
-      .finally(() => setLoading(false))
+    let isMounted = true
+
+    const fetchEstoque = async (silent = false) => {
+      if (!silent) setLoading(true)
+      try {
+        const res = await api.get<EstoqueItem[]>(`/obra/estoque?idObra=${selectedObra}`)
+        if (isMounted) {
+          const itensFiltrados = res.filter(item => item.idObra.toString() === selectedObra)
+          setEstoque(itensFiltrados)
+        }
+      } catch (err: any) {
+        if (isMounted && !silent) showToast(err.message || 'Erro ao carregar estoque')
+      } finally {
+        if (isMounted && !silent) setLoading(false)
+      }
+    }
+
+    fetchEstoque(false)
+
+    const interval = setInterval(() => {
+      fetchEstoque(true)
+    }, 5000)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
   }, [selectedObra])
 
   const [editingMinimoId, setEditingMinimoId] = useState<number | null>(null)
