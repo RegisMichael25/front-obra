@@ -1,36 +1,37 @@
 import { 
   Home, 
   Briefcase, 
-  DollarSign, 
   Package, 
   Settings, 
-  X 
+  X,
+  Truck
 } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
 import type { PerfilUsuario } from '../../types'
 
 interface SidebarProps {
-  currentScreen: 'home' | 'projects' | 'budgets' | 'inventory' | 'settings'
-  setCurrentScreen: (screen: 'home' | 'projects' | 'budgets' | 'inventory' | 'settings') => void
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
   perfil: PerfilUsuario
 }
 
 export function Sidebar({ 
-  currentScreen, 
-  setCurrentScreen, 
   sidebarOpen, 
   setSidebarOpen, 
   perfil 
 }: SidebarProps) {
   
-  const menuItens = [
-    { id: 'home', label: 'Início', icon: Home },
-    { id: 'projects', label: 'Obras & Projetos', icon: Briefcase },
-    { id: 'budgets', label: 'Financeiro', icon: DollarSign },
-    { id: 'inventory', label: 'Almoxarifado', icon: Package },
-    { id: 'settings', label: 'Configurações', icon: Settings },
+  const menuItensFull = [
+    { to: '/', label: 'Início', icon: Home },
+    { to: '/projetos', label: 'Obras & Projetos', icon: Briefcase },
+    { to: '/almoxarifado', label: 'Almoxarifado', icon: Package },
+    { to: '/fornecedores', label: 'Fornecedores', icon: Truck },
+    { to: '/configuracoes', label: 'Configurações', icon: Settings },
   ] as const
+
+  const cargoNorm = perfil.cargo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+  const isOperador = cargoNorm.includes('pedreiro') || cargoNorm.includes('operador') || cargoNorm.includes('operario')
+  const menuItens = isOperador ? menuItensFull.filter(item => item.to === '/' || item.to === '/configuracoes') : menuItensFull
 
   return (
     <>
@@ -46,7 +47,7 @@ export function Sidebar({
                 B
               </div>
               <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-brand-green to-emerald-600 dark:to-emerald-400 bg-clip-text text-transparent">
-                smartBIIM
+                Gestão de Obras
               </span>
             </div>
             {/* Fechar no mobile */}
@@ -62,24 +63,25 @@ export function Sidebar({
           <nav className="p-4 space-y-1">
             {menuItens.map((item) => {
               const Icon = item.icon
-              const isActive = currentScreen === item.id
               return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setCurrentScreen(item.id)
-                    setSidebarOpen(false)
-                  }}
-                  className={`
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) => `
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm transition-all duration-200 group
                     ${isActive 
                       ? 'bg-brand-green/10 text-brand-green-hover dark:text-brand-green font-semibold shadow-sm shadow-brand-green/5' 
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/60 hover:text-slate-900 dark:hover:text-white'}
                   `}
                 >
-                  <Icon size={18} className={`transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-brand-green-hover dark:text-brand-green' : 'text-slate-400 dark:text-slate-500'}`} />
-                  <span>{item.label}</span>
-                </button>
+                  {({ isActive }) => (
+                    <>
+                      <Icon size={18} className={`transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-brand-green-hover dark:text-brand-green' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <span>{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
               )
             })}
           </nav>
@@ -109,5 +111,3 @@ export function Sidebar({
     </>
   )
 }
-
-
